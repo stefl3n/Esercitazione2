@@ -7,7 +7,7 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.*;
 public class Client {
-	public void main(String[] args) {
+	public static void main(String[] args) {
 		int min_size=0;
 		int serverPort=0;
 		InetAddress addr=null;
@@ -45,7 +45,16 @@ public class Client {
 		
 		BufferedReader in=new BufferedReader(new InputStreamReader(System.in));
 		String read_dir;
-		
+		Socket socket = null;
+		DataInputStream socketIn = null;
+		DataOutputStream socketOut = null;
+		try {
+			socket = new Socket(addr,serverPort);
+			
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
 		//richiesta dir e invio contenuto dir
 		while(another_dir) {
 			System.out.println("Inserire il percorso assoluto o relativo della directory di cui si vuole inviare il contenuto...");
@@ -56,36 +65,41 @@ public class Client {
 				
 				//invio file(s)
 				if(dir.isDirectory()) {
+				
 					//creazione socket per dir corrente
-					Socket socket=new Socket(addr,serverPort);
-					DataInputStream socketIn=new DataInputStream(socket.getInputStream());
-					DataOutputStream socketOut = new DataOutputStream(socket.getOutputStream());
+					socketIn = new DataInputStream(socket.getInputStream());
+					socketOut = new DataOutputStream(socket.getOutputStream());
+					
 					
 					//ciclo nei file della directory
 					for(File f : dir.listFiles()) {
 						long file_size = f.length();
 						
-						if(file_size > min_size) {
+						if(file_size > min_size && !f.isDirectory()) {
+							
 							//trasferimento file f
+							
 							socketOut.writeUTF(f.getName());
+							
 							if(socketIn.readUTF().equals("attiva")) {
 								
 								System.out.println("sto inviando "+f.getName());
 								socketOut.writeLong(file_size);
 								FileUtility.trasferisci_a_byte_file_binario(new DataInputStream(new FileInputStream(f)), socketOut);
 								System.out.println("inviato");
+								
 							}
 						}
 					}
 					
-					socket.close();
+
 				}
 				else {
 					System.out.println(read_dir + " non e' una directory");
 				}
 				
 				System.out.println("Vuole inserire un'altra directory?(s/n)");
-				if(in.readLine().equals("n")) another_dir=false;
+				if(in.readLine().equals("n")) {another_dir=false; socket.close();}
 			}
 			catch(IOException ioe) {
 				ioe.printStackTrace();
