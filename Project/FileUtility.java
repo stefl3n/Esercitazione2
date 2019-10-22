@@ -1,6 +1,8 @@
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.EOFException;
+import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
 
 public class FileUtility {
@@ -35,4 +37,33 @@ public class FileUtility {
 	e.printStackTrace();
 	}
 	} 
+	static protected void InvioFile(File f, int min_size,DataInputStream socketIn, DataOutputStream socketOut) throws IOException  {
+		long file_size = f.length();
+		
+		if(file_size > min_size && !f.isDirectory()) {
+			
+			//trasferimento file f
+			
+			socketOut.writeUTF(f.getName());
+			
+			if(socketIn.readUTF().equals("attiva")) {
+				
+				System.out.println("sto inviando "+f.getName());
+				socketOut.writeLong(file_size);
+				FileUtility.trasferisci_a_byte_file_binario(new DataInputStream(new FileInputStream(f)), socketOut);
+				System.out.println("inviato");
+				
+			}
+		}if(f.isDirectory()) {
+			
+			for(File file: f.listFiles()) {
+				
+				InvioFile(file,min_size,socketIn,socketOut);
+				
+			}
+			
+		}
+		
+		
+	}
 }
