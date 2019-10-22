@@ -73,23 +73,14 @@ public class Client {
 					
 					//ciclo nei file della directory
 					for(File f : dir.listFiles()) {
-						long file_size = f.length();
 						
-						if(file_size > min_size && !f.isDirectory()) {
-							
-							//trasferimento file f
-							
-							socketOut.writeUTF(f.getName());
-							
-							if(socketIn.readUTF().equals("attiva")) {
-								
-								System.out.println("sto inviando "+f.getName());
-								socketOut.writeLong(file_size);
-								FileUtility.trasferisci_a_byte_file_binario(new DataInputStream(new FileInputStream(f)), socketOut);
-								System.out.println("inviato");
-								
-							}
+						try {
+							FileUtility.InvioFile(f, min_size, socketIn, socketOut);
+						} catch (IOException e) {
+							// TODO Auto-generated catch block
+							e.printStackTrace();
 						}
+						
 					}
 					
 
