@@ -6,12 +6,13 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.*;
+
 public class Client {
+	
 	public static void main(String[] args) {
 		int min_size=0;
 		int serverPort=0;
 		InetAddress addr=null;
-		boolean another_dir=true;
 		
 		//controllo argomenti
 		if(args.length!=3) {
@@ -31,70 +32,97 @@ public class Client {
 			addr=InetAddress.getByName(args[1]);
 			
 		}
-		catch(UnknownHostException uhe) {
-			uhe.printStackTrace();
-			System.out.println("remote host sconosciuto");
-			System.exit(1);
+		catch(UnknownHostException e) {
+			e.printStackTrace();
+			System.out.println("Remote-host sconosciuto");
+			System.exit(2);
 		}
-		catch(NumberFormatException nfe) {
-			nfe.printStackTrace();
+		catch(NumberFormatException e) {
+			e.printStackTrace();
 			System.out.println("usage: Client min_size(intero) serverAddr serverPort(intero)");
-			System.exit(1);
+			System.exit(3);
 		}
 		
 		
 		BufferedReader in=new BufferedReader(new InputStreamReader(System.in));
-		String read_dir;
+		String read_dir = null;
 		Socket socket = null;
 		DataInputStream socketIn = null;
 		DataOutputStream socketOut = null;
-		try {
-			socket = new Socket(addr,serverPort);
-			
-		} catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
-		//richiesta dir e invio contenuto dir
-		while(another_dir) {
-			System.out.println("Inserire il percorso assoluto o relativo della directory di cui si vuole inviare il contenuto...");
-			
+		
+		
+		do{
+			//richiesta dir e invio contenuto dir
+			System.out.println("Inserire il percorso assoluto o relativo della directory di cui si vuole inviare il contenuto (EOF per terminare)");
+				
 			try {
 				read_dir=in.readLine();
-				File dir=new File(read_dir);
 				
-				//invio file(s)
-				if(dir.isDirectory()) {
-				
-					//creazione socket per dir corrente
-					socketIn = new DataInputStream(socket.getInputStream());
-					socketOut = new DataOutputStream(socket.getOutputStream());
+				if(read_dir!=null) {
+					File dir=new File(read_dir);
 					
-					
-					//ciclo nei file della directory
-					for(File f : dir.listFiles()) {
+					//invio file(s)
+					if(dir.isDirectory()) {
 						
-						try {
-							FileUtility.InvioFile(f, min_size, socketIn, socketOut);
-						} catch (IOException e) {
-							// TODO Auto-generated catch block
-							e.printStackTrace();
-						}
+						//creazione Socket per dir corrente
+						socket = new Socket(addr,serverPort);
+						socketIn = new DataInputStream(socket.getInputStream());
+						socketOut = new DataOutputStream(socket.getOutputStream());
 						
+						//ciclo nei file della directory
+						for(File f : dir.listFiles())
+							InvioFile(f, min_size, socketIn, socketOut);
+						socketOut.writeUTF("finito");
+						socket.shutdownOutput();
 					}
+					else {
+						System.out.println(read_dir + " non è una directory");
+					}
+				}
 					
-
-				}
-				else {
-					System.out.println(read_dir + " non e' una directory");
-				}
+			}catch(IOException e) {
+				e.printStackTrace();
+				System.exit(4);
+			}
+			
+			
+		}while(read_dir!=null);
+		
+	}
+	
+	private static void InvioFile(File f, int min_size,DataInputStream socketIn, DataOutputStream socketOut) throws IOException  {
+		long file_size = f.length();
+		String ans = null;
+		
+		if(file_size > min_size && !f.isDirectory()) {
+			
+			//trasferimento file f
+			
+			socketOut.writeUTF(f.getName());
+			ans = socketIn.readUTF();
+			
+			if(ans.equals("attiva")) {
 				
-				System.out.println("Vuole inserire un'altra directory?(s/n)");
-				if(in.readLine().equals("n")) {another_dir=false; socket.close();}
+				System.out.println("Sto inviando "+f.getName());
+				socketOut.writeLong(file_size);
+				FileUtility.trasferisci_a_byte_file_binario(new DataInputStream(new FileInputStream(f)), socketOut);
+				System.out.println("Inviato");
+				
 			}
-			catch(IOException ioe) {
-				ioe.printStackTrace();
+			else if (ans.equals("salta file")){
+				System.out.println("File "+f.getName()+" già esistente o non richiesto dal server.");
 			}
+			else {
+				System.err.println("Errore nel trasferimento del file "+f.getName()+". Risposta dal server non prevista: "+ans);
+				System.exit(1);
+			}
+				
+		}
+		
+		if(f.isDirectory()) {
+			
+			for(File file: f.listFiles())
+				InvioFile(file,min_size,socketIn,socketOut);	
 		}
 	}
 }
