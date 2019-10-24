@@ -43,7 +43,9 @@ public class Server {
 				try {
 					serverSocket.close();
 				}catch(IOException e1) {
+					System.err.println("Errore chiusara serverSocket:");
 					e1.printStackTrace();
+					System.exit(2);
 				}
 				System.exit(2);
 			}
